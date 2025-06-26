@@ -1,0 +1,85 @@
+{% load mul humanize %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Facture Vente #{{ vente.id }}</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; color: #222; }
+        .header { text-align: center; margin-bottom: 30px; }
+        .logo-img { height: 60px; max-width: 180px; object-fit: contain; margin-bottom: 10px; }
+        .logo { font-size: 28px; font-weight: bold; color: #f97316; }
+        .entreprise-info { margin-bottom: 10px; }
+        .facture-info { display: flex; justify-content: space-between; margin-bottom: 30px; }
+        .client-info, .facture-details { width: 45%; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        th { background-color: #f5f5f5; }
+        .total { text-align: right; font-weight: bold; font-size: 18px; margin-top: 20px; }
+        .footer { margin-top: 40px; text-align: center; color: #666; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        {% if entreprise and entreprise.logo %}
+            <img src="{{ entreprise.logo.url }}" alt="Logo entreprise" class="logo-img" />
+        {% endif %}
+        <div class="logo">{{ entreprise.nom|default:'Bigitalis MVS' }}</div>
+        <div class="entreprise-info">
+            {% if entreprise %}
+                <div>{{ entreprise.adresse }}</div>
+                <div>{% if entreprise.telephone %}Tél : {{ entreprise.telephone }}{% endif %}{% if entreprise.email %} | Email : {{ entreprise.email }}{% endif %}</div>
+                {% if entreprise.site_web %}<div>Site : {{ entreprise.site_web }}</div>{% endif %}
+                {% if entreprise.siret %}<div>SIRET : {{ entreprise.siret }}</div>{% endif %}
+            {% else %}
+                <div>Gestion des Ventes</div>
+            {% endif %}
+        </div>
+    </div>
+    <div class="facture-info">
+        <div class="client-info">
+            <h3>Client</h3>
+            <p><strong>{{ client.nom }}</strong></p>
+            <p>{{ client.email }}</p>
+            <p>{{ client.telephone }}</p>
+            <p>{{ client.adresse }}</p>
+        </div>
+        <div class="facture-details">
+            <h3>Facture</h3>
+            <p><strong>N° Facture:</strong> {{ vente.id }}</p>
+            <p><strong>Date:</strong> {{ vente.date|date:'d/m/Y H:i' }}</p>
+            <p><strong>Statut:</strong> {{ vente.statut }}</p>
+        </div>
+    </div>
+    <table>
+        <thead>
+            <tr>
+                <th>Produit</th>
+                <th>Quantité</th>
+                <th>Prix unitaire</th>
+                <th>Total</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for vp in produits %}
+                <tr>
+                    <td>{{ vp.produit.nom }}</td>
+                    <td>{{ vp.quantite }}</td>
+                    <td>{{ vp.prixUnitaire|intcomma }} FCFA</td>
+                    <td>{{ vp.quantite|mul:vp.prixUnitaire|intcomma }} FCFA</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <div class="total">
+        <p>Total: {{ vente.total|intcomma }} FCFA</p>
+    </div>
+    <div class="footer">
+        {% if entreprise and entreprise.notes_facture %}
+            <p>{{ entreprise.notes_facture }}</p>
+        {% endif %}
+        <p>Merci pour votre confiance !</p>
+        <p>{{ entreprise.nom|default:'Bigitalis MVS' }}{% if entreprise.site_web %} - {{ entreprise.site_web }}{% endif %}</p>
+    </div>
+</body>
+</html> 

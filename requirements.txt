@@ -1,0 +1,22 @@
+Django>=4.2
+# API REST
+djangorestframework>=3.14
+# Authentification JWT
+djangorestframework-simplejwt>=5.2
+# Génération PDF pour factures
+WeasyPrint>=60.1
+# Pour le support des images dans les modèles
+Pillow>=10.0
+# Pour l'envoi d'e-mails (inclus dans Django, mais utile si SMTP custom)
+# Pour Google Auth (optionnel, si utilisé)
+requests>=2.31
+# Pour la gestion des CORS si besoin
+django-cors-headers>=4.3
+# Serveur WSGI pour déploiement
+Gunicorn>=21.2
+# Sécurité (headers HTTP)
+django-environ>=0.11
+# Pour servir les fichiers statiques en prod
+django-whitenoise>=6.6
+# Pour PostgreSQL (optionnel, recommandé en prod)
+psycopg2-binary>=2.9 
