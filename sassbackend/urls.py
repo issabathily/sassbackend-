@@ -23,6 +23,8 @@ from venteapp.views import (
 from rest_framework_simplejwt.views import (
     TokenRefreshView,
 )
+from django.conf import settings
+from django.conf.urls.static import static
 
 router = DefaultRouter()
 router.register(r'clients', ClientViewSet)
@@ -40,5 +42,6 @@ urlpatterns = [
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('api/register/', RegisterView.as_view(), name='register'),
     path('api/google-login/', GoogleLoginView.as_view(), name='google_login'),
-    path('api/chatbot/', include('venteapp.urls')),
 ]
+
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

@@ -9,6 +9,7 @@ class ClientSerializer(serializers.ModelSerializer):
 
 class ProduitSerializer(serializers.ModelSerializer):
     user = serializers.ReadOnlyField(source='user.username')
+    image = serializers.ImageField(required=False, allow_null=True)
     class Meta:
         model = Produit
         fields = '__all__'

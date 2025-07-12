@@ -26,6 +26,14 @@ try:
 except ImportError:
     HTML = None  # Pour éviter l'erreur si non installé
 import traceback
+from django.utils import timezone
+from datetime import timedelta
+from django.db.models import Sum
+from rest_framework.parsers import MultiPartParser, FormParser
+from django.db.models.functions import TruncMonth
+from collections import OrderedDict
+from django.core.cache import cache
+import uuid
 
 # Create your views here.
 
@@ -46,6 +54,7 @@ class ProduitViewSet(UserQuerySetMixin, viewsets.ModelViewSet):
     queryset = Produit.objects.all()
     serializer_class = ProduitSerializer
     permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
 
 class VenteViewSet(UserQuerySetMixin, viewsets.ModelViewSet):
     queryset = Vente.objects.all()
@@ -173,6 +182,21 @@ class ChatbotView(APIView):
             conversation = ChatbotConversation.objects.create(user=user)
         # Enregistre le message utilisateur
         ChatbotMessage.objects.create(conversation=conversation, sender='user', text=question)
+        # Détection intelligente pour les graphiques de ventes
+        if (
+            ("vente" in question or "ventes" in question)
+            and ("graph" in question or "rapport" in question or "stat" in question)
+        ):
+            response_data = self._get_weekly_sales_chart(user)
+            bot_answer = response_data.get("answer", "Voici votre graphique.")
+            response_payload = {
+                "answer": bot_answer,
+                "conversation_id": conversation.id,
+                "type": "chart",
+                "chartData": response_data.get("chartData")
+            }
+            ChatbotMessage.objects.create(conversation=conversation, sender='bot', text=bot_answer)
+            return Response(response_payload)
         # Détection des salutations
         salutations = ["salut", "bonjour", "coucou", "hello", "yo", "hey"]
         reponses_salut = [
@@ -196,9 +220,22 @@ class ChatbotView(APIView):
         for keywords, answer_func in faq:
             for kw in keywords:
                 if kw in question or difflib.get_close_matches(kw, [question], n=1, cutoff=0.8):
-                    bot_answer = answer_func()
+                    response_data = answer_func()
+                    # Si la fonction retourne un dictionnaire (pour les graphiques)
+                    if isinstance(response_data, dict):
+                        bot_answer = response_data.get("answer", "Voici votre graphique.")
+                        response_payload = {
+                            "answer": bot_answer,
+                            "conversation_id": conversation.id,
+                            "type": "chart",
+                            "chartData": response_data.get("chartData")
+                        }
+                    else: # Réponse textuelle simple
+                        bot_answer = response_data
+                        response_payload = {"answer": bot_answer, "conversation_id": conversation.id}
+
                     ChatbotMessage.objects.create(conversation=conversation, sender='bot', text=bot_answer)
-                    return Response({"answer": bot_answer, "conversation_id": conversation.id})
+                    return Response(response_payload)
         suggestions = []
         for keywords, _ in faq:
             for kw in keywords:
@@ -218,6 +255,39 @@ class ChatbotView(APIView):
             return f"Dernière vente : {vente.total} FCFA le {vente.date.strftime('%d/%m/%Y')}"
         else:
             return "Aucune vente enregistrée."
+
+    def _get_weekly_sales_chart(self, user):
+        today = timezone.now().date()
+        week_ago = today - timedelta(days=7)
+        sales = Vente.objects.filter(user=user, date__gte=week_ago).values('date').annotate(total_sales=Sum('total')).order_by('date')
+
+        chart_data = [
+            {"date": s['date'].strftime('%Y-%m-%d'), "total": float(s['total_sales'])}
+            for s in sales
+        ]
+
+        # Remplir les jours sans ventes avec 0 pour un graphique continu
+        sales_by_date = {item['date']: item['total'] for item in chart_data}
+        full_chart_data = []
+        for i in range(8):
+            day = week_ago + timedelta(days=i)
+            day_str = day.strftime('%Y-%m-%d')
+            full_chart_data.append({
+                "date": day_str,
+                "total": sales_by_date.get(day_str, 0)
+            })
+
+        return {
+            "answer": f"Voici le résumé de vos ventes pour les 7 derniers jours.",
+            "type": "chart",
+            "chartData": {
+                "data": full_chart_data,
+                "config": {
+                    "total": { "label": "Ventes (FCFA)", "color": "hsl(var(--chart-1))" }
+                },
+                "dataKey": "date"
+            }
+        }
 
 class UserListSerializer(ModelSerializer):
     class Meta:
@@ -340,3 +410,28 @@ class EntrepriseSettingsView(APIView):
             return Response(serializer.data)
         print(serializer.errors)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def ventes_par_mois(request):
+    user = request.user
+    # Grouper les ventes par mois
+    ventes = (
+        Vente.objects.filter(user=user)
+        .annotate(month=TruncMonth('date'))
+        .values('month')
+        .annotate(total=Sum('total'))
+        .order_by('month')
+    )
+    # Générer la liste ordonnée des mois
+    mois_list = []
+    for v in ventes:
+        mois_str = v['month'].strftime('%Y-%m')
+        mois_list.append({'mois': mois_str, 'total': v['total']})
+    # Calcul de la moyenne mobile sur 3 mois
+    for i, v in enumerate(mois_list):
+        prev1 = mois_list[i-1]['total'] if i-1 >= 0 else 0
+        prev2 = mois_list[i-2]['total'] if i-2 >= 0 else 0
+        count = 1 + (i >= 1) + (i >= 2)
+        v['movingAvg'] = round((v['total'] + prev1 + prev2) / count)
+    return Response(mois_list)
