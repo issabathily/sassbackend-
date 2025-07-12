@@ -13,10 +13,10 @@ requests>=2.31
 # Pour la gestion des CORS si besoin
 django-cors-headers>=4.3
 # Serveur WSGI pour déploiement
-Gunicorn>=21.2
+gunicorn>=21.2
 # Sécurité (headers HTTP)
 django-environ>=0.11
-# Pour servir les fichiers statiques en prod
-django-whitenoise>=6.6
+# Pour servir les fichiers statiques en prod (correction ici)
+whitenoise>=6.6
 # Pour PostgreSQL (optionnel, recommandé en prod)
-psycopg2-binary>=2.9 
+psycopg2-binary>=2.9
