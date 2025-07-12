@@ -1,19 +1,17 @@
 from pathlib import Path
 from datetime import timedelta
 import os
-import dj_database_url  # ✅ Pour la base PostgreSQL sur Render
+import dj_database_url
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# 🔐 Secret key & debug
-SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-adcj6_0n96fo70iv%a1!9zjzff&&#^!#_@^^(%9h^+qd^_7mb#')
+SECRET_KEY = os.getenv('SECRET_KEY', 'ta_clef_secrete_de_dev')
 DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
-# 🌍 Hôtes autorisés (localhost + Render)
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '.onrender.com']
+ALLOWED_HOSTS = ['sassbackend.onrender.com', 'localhost', '127.0.0.1']
 
-# 📦 Apps installées
 INSTALLED_APPS = [
+    # apps Django
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -21,19 +19,20 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
 
-    # Tiers
+    # tiers
     'rest_framework',
     'corsheaders',
     'django.contrib.humanize',
+    'storages',  # <--- django-storages pour S3
 
-    # Apps perso
+    # apps perso
     'venteapp',
 ]
 
-# 🔁 Middlewares
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # <--- Whitenoise
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -61,7 +60,6 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'sassbackend.wsgi.application'
 
-# 🛢️ Base de données (Render = PostgreSQL ou fallback SQLite)
 DATABASES = {
     'default': dj_database_url.config(
         default=f'sqlite:///{BASE_DIR}/db.sqlite3',
@@ -69,7 +67,6 @@ DATABASES = {
     )
 }
 
-# 🔐 Validation des mots de passe
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
     {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
@@ -77,19 +74,15 @@ AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
 
-# 🌐 Internationalisation
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
-# 🧩 Clé primaire par défaut
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# 🔁 CORS
 CORS_ALLOW_ALL_ORIGINS = True
 
-# 🔒 JWT
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
@@ -109,10 +102,24 @@ SIMPLE_JWT = {
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
 
-# 🖼️ Médias
-MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
-
-# 📦 Fichiers statiques (obligatoire pour collectstatic)
+# Fichiers statiques
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
+# Médias - Configuration S3 (en prod)
+USE_S3 = os.getenv('USE_S3', 'False') == 'True'
+
+if USE_S3:
+    AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
+    AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
+    AWS_STORAGE_BUCKET_NAME = os.getenv('AWS_STORAGE_BUCKET_NAME')
+    AWS_S3_REGION_NAME = os.getenv('AWS_S3_REGION_NAME', 'us-east-1')
+    AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com'
+
+    DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+
+    MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/media/'
+else:
+    MEDIA_URL = '/media/'
+    MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
