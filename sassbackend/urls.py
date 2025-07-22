@@ -44,4 +44,6 @@ urlpatterns = [
     path('api/google-login/', GoogleLoginView.as_view(), name='google_login'),
 ]
 
-urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+if settings.DEBUG and not settings.USE_S3:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+

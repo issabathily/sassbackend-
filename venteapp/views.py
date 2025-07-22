@@ -197,26 +197,152 @@ class ChatbotView(APIView):
             }
             ChatbotMessage.objects.create(conversation=conversation, sender='bot', text=bot_answer)
             return Response(response_payload)
+        
+        # Détection pour graphiques de ventes par mois
+        if any(word in question for word in ["ventes par mois", "graphique mensuel", "statistiques mensuelles", "rapport mensuel"]):
+            response_data = self._get_monthly_sales_chart(user)
+            bot_answer = response_data.get("answer", "Voici votre graphique des ventes par mois.")
+            response_payload = {
+                "answer": bot_answer,
+                "conversation_id": conversation.id,
+                "type": "chart",
+                "chartData": response_data.get("chartData")
+            }
+            ChatbotMessage.objects.create(conversation=conversation, sender='bot', text=bot_answer)
+            return Response(response_payload)
+        
+        # Détection pour graphiques de produits populaires
+        if any(word in question for word in ["produits populaires", "meilleurs produits", "produits vendus", "top produits", "produits les plus vendus"]):
+            response_data = self._get_popular_products_chart(user)
+            bot_answer = response_data.get("answer", "Voici vos produits les plus populaires.")
+            response_payload = {
+                "answer": bot_answer,
+                "conversation_id": conversation.id,
+                "type": "chart",
+                "chartData": response_data.get("chartData")
+            }
+            ChatbotMessage.objects.create(conversation=conversation, sender='bot', text=bot_answer)
+            return Response(response_payload)
+        
+        # Détection pour graphiques de stock par catégorie
+        if any(word in question for word in ["stock par catégorie", "inventaire par catégorie", "catégories de produits", "stock catégorie"]):
+            response_data = self._get_stock_by_category_chart(user)
+            bot_answer = response_data.get("answer", "Voici votre stock par catégorie.")
+            response_payload = {
+                "answer": bot_answer,
+                "conversation_id": conversation.id,
+                "type": "chart",
+                "chartData": response_data.get("chartData")
+            }
+            ChatbotMessage.objects.create(conversation=conversation, sender='bot', text=bot_answer)
+            return Response(response_payload)
+        
+        # Détection générale pour graphiques
+        if any(word in question for word in ["graphique", "graph", "chart", "visualisation", "courbe", "histogramme", "camembert"]):
+            response_data = self._get_weekly_sales_chart(user)
+            bot_answer = "Voici un graphique de vos ventes des 7 derniers jours."
+            response_payload = {
+                "answer": bot_answer,
+                "conversation_id": conversation.id,
+                "type": "chart",
+                "chartData": response_data.get("chartData")
+            }
+            ChatbotMessage.objects.create(conversation=conversation, sender='bot', text=bot_answer)
+            return Response(response_payload)
         # Détection des salutations
-        salutations = ["salut", "bonjour", "coucou", "hello", "yo", "hey"]
+        salutations = ["salut", "bonjour", "coucou", "hello", "yo", "hey","sa roule"]
         reponses_salut = [
             "Salut ! Comment puis-je t'aider aujourd'hui ?",
             "Hello 👋 Que puis-je faire pour toi ?",
             "Coucou ! Besoin d'un rapport ou d'une info sur tes ventes ?",
             "Bonjour ! Je suis là pour t'aider avec tes données.",
             "Hey ! Dis-moi ce que tu veux savoir sur ton ERP.",
-            "Bienvenue ! Tu veux voir tes stocks ou tes clients ?"
+            "Bienvenue ! Tu veux voir tes stocks ou tes clients ?",
+            "Salut ! Comment puis-je t'aider aujourd'hui ?",
         ]
         if any(s in question for s in salutations):
             bot_answer = random.choice(reponses_salut)
             ChatbotMessage.objects.create(conversation=conversation, sender='bot', text=bot_answer)
             return Response({"answer": bot_answer, "conversation_id": conversation.id})
         # Liste de questions/réponses possibles
+        # faq = [
+        #     (["nombre de clients", "combien de clients", "total clients","nombre de client","total clients","clients"], lambda: f"Vous avez {Client.objects.filter(user=user).count()} clients enregistrés."),
+        #     (["produits en stock", "stock total", "combien de produits","nombre stoks","stoks restant"], lambda: f"Il y a {sum(p.stock for p in Produit.objects.filter(user=user))} produits en stock au total."),
+        #     (["dernière vente", "derniere vente", "vente récente", "derniere transaction","ventes"], lambda: self._last_vente(user)),
+        # ]
         faq = [
-            (["nombre de clients", "combien de clients", "total clients"], lambda: f"Vous avez {Client.objects.filter(user=user).count()} clients enregistrés."),
-            (["produits en stock", "stock total", "combien de produits"], lambda: f"Il y a {sum(p.stock for p in Produit.objects.filter(user=user))} produits en stock au total."),
-            (["dernière vente", "derniere vente", "vente récente", "derniere transaction"], lambda: self._last_vente(user)),
+            (
+                [
+                    "nombre de clients", "combien de clients", "total clients", "clients enregistrés",
+                    "clients inscrits", "nb clients", "nombre client", "nombre de client", "clients"
+                ],
+                lambda: f"Vous avez {Client.objects.filter(user=user).count()} clients enregistrés."
+            ),
+            (
+                [
+                    "produits en stock", "stock total", "combien de produits", "nombre stocks",
+                    "stocks restants", "produits restants", "nb produits", "stock actuel", "inventaire"
+                ],
+                lambda: f"Il y a {sum(p.stock for p in Produit.objects.filter(user=user))} produits en stock au total."
+            ),
+            (
+                [
+                    "dernière vente", "derniere vente", "vente récente", "dernière transaction",
+                    "vente effectuée", "dernière commande", "vente du jour", "dernière opération", "ventes"
+                ],
+                lambda: self._last_vente(user)
+            ),
+            (
+                [
+                    "total ventes", "nombre de ventes", "combien de ventes", "ventes totales",
+                    "total des ventes", "nb ventes", "ventes réalisées"
+                ],
+                lambda: f"Vous avez réalisé {Vente.objects.filter(user=user).count()} ventes au total."
+            ),
+            (
+                [
+                    "chiffre d'affaires", "total chiffre affaires", "revenus générés",
+                    "combien j'ai gagné", "gains totaux", "recettes", "total des recettes"
+                ],
+                lambda: self._get_chiffre_affaires(user)
+            ),
+            (
+                [
+                    "meilleur client", "client fidèle", "client qui achète le plus",
+                    "top client", "client le plus rentable"
+                ],
+                lambda: self._top_client(user)
+            ),
+            (
+                [
+                    "graphique ventes", "graphique des ventes", "courbe des ventes", "statistiques ventes",
+                    "rapport ventes", "évolution ventes", "tendance ventes", "graphique hebdomadaire"
+                ],
+                lambda: self._get_weekly_sales_chart(user)
+            ),
+            (
+                [
+                    "graphique mensuel", "ventes par mois", "statistiques mensuelles", "rapport mensuel",
+                    "évolution mensuelle", "tendance mensuelle", "graphique annuel"
+                ],
+                lambda: self._get_monthly_sales_chart(user)
+            ),
+            (
+                [
+                    "produits populaires", "meilleurs produits", "produits vendus", "top produits",
+                    "produits les plus vendus", "produits préférés", "produits en demande"
+                ],
+                lambda: self._get_popular_products_chart(user)
+            ),
+            (
+                [
+                    "stock par catégorie", "inventaire par catégorie", "catégories de produits",
+                    "stock catégorie", "répartition stock", "inventaire catégorie"
+                ],
+                lambda: self._get_stock_by_category_chart(user)
+            ),
         ]
+
         for keywords, answer_func in faq:
             for kw in keywords:
                 if kw in question or difflib.get_close_matches(kw, [question], n=1, cutoff=0.8):
@@ -256,13 +382,30 @@ class ChatbotView(APIView):
         else:
             return "Aucune vente enregistrée."
 
+    def _top_client(self, user):
+        """Trouve le client qui a le plus acheté"""
+        try:
+            # Calculer le total des achats par client
+            top_client = Vente.objects.filter(user=user).values('client__nom').annotate(
+                total_achats=Sum('total')
+            ).order_by('-total_achats').first()
+            
+            if top_client and top_client['client__nom']:
+                return f"Votre meilleur client est {top_client['client__nom']} avec {top_client['total_achats']} FCFA d'achats."
+            else:
+                return "Aucun client n'a encore effectué d'achat."
+        except Exception as e:
+            return "Impossible de récupérer les informations sur le meilleur client."
+
     def _get_weekly_sales_chart(self, user):
         today = timezone.now().date()
         week_ago = today - timedelta(days=7)
-        sales = Vente.objects.filter(user=user, date__gte=week_ago).values('date').annotate(total_sales=Sum('total')).order_by('date')
+        # Utiliser timezone.now() pour éviter les warnings de timezone
+        week_ago_tz = timezone.make_aware(timezone.datetime(week_ago.year, week_ago.month, week_ago.day))
+        sales = Vente.objects.filter(user=user, date__gte=week_ago_tz).values('date').annotate(total_sales=Sum('total')).order_by('date')
 
         chart_data = [
-            {"date": s['date'].strftime('%Y-%m-%d'), "total": float(s['total_sales'])}
+            {"date": s['date'].strftime('%Y-%m-%d'), "total": max(0, float(s['total_sales']))}  # Éviter les valeurs négatives
             for s in sales
         ]
 
@@ -277,17 +420,118 @@ class ChatbotView(APIView):
                 "total": sales_by_date.get(day_str, 0)
             })
 
-        return {
+        chart_response = {
             "answer": f"Voici le résumé de vos ventes pour les 7 derniers jours.",
             "type": "chart",
             "chartData": {
                 "data": full_chart_data,
                 "config": {
-                    "total": { "label": "Ventes (FCFA)", "color": "hsl(var(--chart-1))" }
+                    "total": { "label": "Ventes (FCFA)", "color": "#f97316" }
                 },
                 "dataKey": "date"
             }
         }
+        print(f"Generated chart data: {chart_response}")
+        return chart_response
+
+    def _get_chiffre_affaires(self, user):
+        """Calcule le chiffre d'affaires total pour l'utilisateur."""
+        total_chiffre_affaires = Vente.objects.filter(user=user).aggregate(total_chiffre_affaires=Sum('total'))['total_chiffre_affaires'] or 0
+        return f"Votre chiffre d'affaires est de {total_chiffre_affaires} FCFA."
+
+    def _get_monthly_sales_chart(self, user):
+        """Génère un graphique des ventes par mois pour l'utilisateur."""
+        today = timezone.now().date()
+        start_of_year = today.replace(month=1, day=1)
+        # Utiliser timezone.now() pour éviter les warnings de timezone
+        start_of_year_tz = timezone.make_aware(timezone.datetime(start_of_year.year, 1, 1))
+        sales = Vente.objects.filter(user=user, date__gte=start_of_year_tz).values('date__month').annotate(total_sales=Sum('total')).order_by('date__month')
+
+        chart_data = [
+            {"month": s['date__month'], "total": max(0, float(s['total_sales']))}  # Éviter les valeurs négatives
+            for s in sales
+        ]
+
+        # Remplir les mois sans ventes avec 0 pour un graphique continu
+        sales_by_month = {item['month']: item['total'] for item in chart_data}
+        full_chart_data = []
+        for i in range(12): # 12 mois
+            month_num = (start_of_year.month + i) % 12 or 12 # Pour éviter les mois négatifs
+            month_str = start_of_year.replace(month=month_num).strftime('%Y-%m')
+            full_chart_data.append({
+                "month": month_str,
+                "total": sales_by_month.get(month_num, 0)
+            })
+
+        chart_response = {
+            "answer": f"Voici le résumé de vos ventes par mois depuis le début de l'année.",
+            "type": "chart",
+            "chartData": {
+                "data": full_chart_data,
+                "config": {
+                    "total": { "label": "Ventes (FCFA)", "color": "#f97316" }
+                },
+                "dataKey": "month"
+            }
+        }
+        print(f"Generated monthly chart data: {chart_response}")
+        return chart_response
+
+    def _get_popular_products_chart(self, user):
+        """Génère un graphique des produits les plus vendus pour l'utilisateur."""
+        produits = (
+            VenteProduit.objects.filter(vente__user=user)
+            .values('produit__nom', 'produit__categorie')
+            .annotate(total_vendu=Sum('quantite'))
+            .order_by('-total_vendu')[:10] # Limiter à 10 produits
+        )
+
+        chart_data = [
+            {"nom": p['produit__nom'], "categorie": p['produit__categorie'], "total_vendu": max(0, p['total_vendu'])}
+            for p in produits
+        ]
+
+        chart_response = {
+            "answer": f"Voici les {len(chart_data)} produits les plus vendus.",
+            "type": "chart",
+            "chartData": {
+                "data": chart_data,
+                "config": {
+                    "total_vendu": { "label": "Quantité vendue", "color": "#10b981" }
+                },
+                "dataKey": "nom"
+            }
+        }
+        print(f"Generated products chart data: {chart_response}")
+        return chart_response
+
+    def _get_stock_by_category_chart(self, user):
+        """Génère un graphique du stock par catégorie pour l'utilisateur."""
+        categories = (
+            Produit.objects.filter(user=user)
+            .values('categorie')
+            .annotate(total_stock=Sum('stock'))
+            .order_by('-total_stock')
+        )
+
+        chart_data = [
+            {"categorie": cat['categorie'], "total_stock": max(0, cat['total_stock'])}
+            for cat in categories
+        ]
+
+        chart_response = {
+            "answer": f"Voici le résumé de votre stock par catégorie.",
+            "type": "chart",
+            "chartData": {
+                "data": chart_data,
+                "config": {
+                    "total_stock": { "label": "Stock total", "color": "#3b82f6" }
+                },
+                "dataKey": "categorie"
+            }
+        }
+        print(f"Generated stock chart data: {chart_response}")
+        return chart_response
 
 class UserListSerializer(ModelSerializer):
     class Meta:
@@ -435,3 +679,115 @@ def ventes_par_mois(request):
         count = 1 + (i >= 1) + (i >= 2)
         v['movingAvg'] = round((v['total'] + prev1 + prev2) / count)
     return Response(mois_list)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def ventes_par_jour(request):
+    user = request.user
+    from datetime import datetime, timedelta
+    # Ventes des 7 derniers jours
+    end_date = datetime.now().date()
+    start_date = end_date - timedelta(days=6)
+    
+    ventes = (
+        Vente.objects.filter(user=user, date__date__range=[start_date, end_date])
+        .values('date__date')
+        .annotate(total=Sum('total'))
+        .order_by('date__date')
+    )
+    
+    # Remplir les jours sans ventes
+    data = []
+    for i in range(7):
+        current_date = start_date + timedelta(days=i)
+        vente = next((v for v in ventes if v['date__date'] == current_date), None)
+        data.append({
+            'date': current_date.strftime('%Y-%m-%d'),
+            'jour': current_date.strftime('%A')[:3],
+            'total': vente['total'] if vente else 0
+        })
+    
+    return Response(data)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def produits_populaires(request):
+    user = request.user
+    from django.db.models import Count
+    
+    # Produits les plus vendus
+    produits = (
+        VenteProduit.objects.filter(vente__user=user)
+        .values('produit__nom', 'produit__categorie')
+        .annotate(total_vendu=Count('id'))
+        .order_by('-total_vendu')[:5]
+    )
+    
+    data = []
+    for p in produits:
+        data.append({
+            'nom': p['produit__nom'],
+            'categorie': p['produit__categorie'],
+            'total_vendu': p['total_vendu']
+        })
+    
+    return Response(data)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def stock_par_categorie(request):
+    user = request.user
+    from django.db.models import Sum
+    
+    # Stock total par catégorie
+    categories = (
+        Produit.objects.filter(user=user)
+        .values('categorie')
+        .annotate(total_stock=Sum('stock'))
+        .order_by('-total_stock')
+    )
+    
+    data = []
+    for cat in categories:
+        data.append({
+            'categorie': cat['categorie'],
+            'total_stock': cat['total_stock']
+        })
+    
+    return Response(data)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def tendances_ventes(request):
+    user = request.user
+    from datetime import datetime, timedelta
+    
+    # Comparaison avec la période précédente
+    end_date = datetime.now().date()
+    start_date_current = end_date - timedelta(days=30)
+    start_date_previous = start_date_current - timedelta(days=30)
+    
+    # Ventes période actuelle
+    ventes_current = Vente.objects.filter(
+        user=user, 
+        date__date__range=[start_date_current, end_date]
+    ).aggregate(total=Sum('total'))['total'] or 0
+    
+    # Ventes période précédente
+    ventes_previous = Vente.objects.filter(
+        user=user, 
+        date__date__range=[start_date_previous, start_date_current]
+    ).aggregate(total=Sum('total'))['total'] or 0
+    
+    # Calcul du pourcentage de changement
+    if ventes_previous > 0:
+        changement = ((ventes_current - ventes_previous) / ventes_previous) * 100
+    else:
+        changement = 100 if ventes_current > 0 else 0
+    
+    return Response({
+        'ventes_actuelles': ventes_current,
+        'ventes_precedentes': ventes_previous,
+        'changement_pourcentage': round(changement, 1),
+        'tendance': 'up' if changement >= 0 else 'down'
+    })

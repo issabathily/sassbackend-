@@ -23,6 +23,7 @@ class Produit(models.Model):
     stockMin = models.IntegerField()
     unite = models.CharField(max_length=30)
     image = models.ImageField(upload_to='produits/', null=True, blank=True)
+    description = models.TextField(blank=True)
 
     def __str__(self):
         return self.nom
